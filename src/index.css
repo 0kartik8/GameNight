@@ -1,0 +1,6 @@
+@import "tailwindcss";
+@theme{--font-display:"Bricolage Grotesque",sans-serif;--font-sans:"DM Sans",sans-serif;--color-ink:#0c0b16;--color-panel:#181530;--color-violet:#8b5cf6;--color-pink:#ff4d8d;--color-lime:#b6f23a;--color-amber:#ffb627}
+body{background:var(--color-ink);color:#fff;font-family:var(--font-sans);min-height:100dvh}
+@keyframes pop{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
+.pop{animation:pop .35s ease-out}
+@media (prefers-reduced-motion:reduce){.pop{animation:none}}
