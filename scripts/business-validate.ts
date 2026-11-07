@@ -1,7 +1,7 @@
-import { BOARD, GROUP_TILES, HOLY_TILES, RAIL_TILES, UTILITY_TILES, POS, isOwnable, mortgageValue } from '../src/games/business/board';
-import type { Tile } from '../src/games/business/board';
-import { CARDS, cardsOf } from '../src/games/business/cards';
-import { CONFIG } from '../src/games/business/config';
+import { BOARD, GROUP_TILES, HOLY_TILES, RAIL_TILES, UTILITY_TILES, POS, isOwnable, mortgageValue } from './board';
+import type { Tile } from './board';
+import { CARDS, cardsOf } from './cards';
+import { CONFIG } from './config';
 
 let failures = 0;
 const check = (name: string, ok: boolean, detail = ''): void => {
@@ -16,21 +16,22 @@ check('corners at 0/10/20/30', BOARD[POS.start].kind === 'start' && BOARD[POS.ja
   BOARD[POS.freeParking].kind === 'freeParking' && BOARD[POS.goToJail].kind === 'goToJail');
 check('non-card tile names unique',
   BOARD.filter((t) => t.kind !== 'card').length === new Set(BOARD.filter((t) => t.kind !== 'card').map((t) => t.name)).size);
-check('20 cities', count('city') === 20, String(count('city')));
+check('19 cities + 1 Sarkari Toll', count('city') === 19 && count('toll') === 1, `${count('city')} cities, ${count('toll')} toll`);
+check('1 Stock Market, not buyable', count('market') === 1 && !isOwnable(BOARD[38]), BOARD[38].name);
 check('2 holy', HOLY_TILES.length === 2);
 check('4 rail', RAIL_TILES.length === 4);
 check('2 utility', UTILITY_TILES.length === 2);
-check('2 tax', count('tax') === 2);
+check('1 tax (Income Tax)', count('tax') === 1 && BOARD.every((t) => t.kind !== 'tax' || t.name === 'Income Tax'));
 check('6 card tiles (3+3)', count('card') === 6 &&
   BOARD.filter((t) => t.kind === 'card' && t.deck === 'kismat').length === 3 &&
   BOARD.filter((t) => t.kind === 'card' && t.deck === 'khazana').length === 3);
-check('color group sizes 3,3,3,3,3,3,2',
-  Object.values(GROUP_TILES).map((g) => g.length).join(',') === '3,3,3,3,3,3,2',
+check('color group sizes 3,3,3,2,3,3,2 (red has 2 after Nagpur leaves)',
+  Object.values(GROUP_TILES).map((g) => g.length).join(',') === '3,3,3,2,3,3,2',
   Object.entries(GROUP_TILES).map(([g, v]) => `${g}:${v.length}`).join(' '));
 
 // ---- prices and rents ----
 const total = BOARD.reduce((s, t) => s + (isOwnable(t) ? t.price : 0), 0);
-check('board price total = 19,700', total === 19700, String(total));
+check('board price total = 19,500 (Nagpur out, Sarkari Toll in at 550)', total === 19500, String(total));
 check('all mortgage values whole rupees', BOARD.every((t) => !isOwnable(t) || Number.isInteger(mortgageValue(t.price))));
 const cities = BOARD.filter((t): t is Extract<Tile, { kind: 'city' }> => t.kind === 'city');
 check('city rent arrays: 6 values, strictly rising, multiples of 5',
@@ -49,9 +50,14 @@ check('holy rent [100,300], price 600', HOLY_TILES.every((i) => {
 check('32 cards', CARDS.length === 32);
 check('16 per deck', cardsOf('kismat').length === 16 && cardsOf('khazana').length === 16);
 check('card ids unique', new Set(CARDS.map((c) => c.id)).size === CARDS.length);
-check('exactly 1 jail-free per deck',
-  (['kismat', 'khazana'] as const).every((d) => cardsOf(d).filter((c) => c.effect.type === 'jailFree').length === 1));
+check('plain jail-free: 1 in Khazana; Kismat jail card is a Joker',
+  cardsOf('khazana').filter((c) => c.effect.type === 'jailFree').length === 1 && cardsOf('kismat').filter((c) => c.effect.type === 'jailFree').length === 0 && cardsOf('kismat').filter((c) => c.effect.type === 'joker' && c.effect.kind === 'jail').length === 1);
+check('Kismat has 4 Jokers: heist, uno, block, jail', ['heist', 'uno', 'block', 'jail'].every((k) => cardsOf('kismat').filter((c) => c.effect.type === 'joker' && c.effect.kind === k).length === 1) && cardsOf('kismat').filter((c) => c.effect.type === 'joker').length === 4);
+check('Jokers have 5 used lines each', CARDS.filter((c) => c.effect.type === 'joker').every((c) => c.effect.type === 'joker' && c.effect.used.length === 5));
+check('no card mentions GST', CARDS.every((c) => !/GST/.test(c.line)));
 check('exactly 1 speed-limit card', CARDS.filter((c) => c.effect.type === 'speedLimit').length === 1);
+check('two rolled-move cards, one each way', CARDS.filter((c) => c.effect.type === 'rollMove' && c.effect.dir > 0).length === 1 && CARDS.filter((c) => c.effect.type === 'rollMove' && c.effect.dir < 0).length === 1);
+check('no leftover moveBy effects', CARDS.every((c) => (c.effect as { type: string }).type !== 'moveBy'));
 check('moveTo targets inside board', CARDS.every((c) => c.effect.type !== 'moveTo' || (c.effect.tile >= 0 && c.effect.tile < 40)));
 check('money amounts positive', CARDS.every((c) => {
   const e = c.effect;

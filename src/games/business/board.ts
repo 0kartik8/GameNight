@@ -7,6 +7,8 @@ export type DeckName = 'kismat' | 'khazana';
 // Rail rent order: [1 owned, 2, 3, 4]
 // Holy rent order: [1 owned, 2 owned]. Holy tiles take no buildings.
 export type Tile =
+  | { kind: 'toll'; name: string; price: number; base: number; rise: number }
+  | { kind: 'market'; name: string }
   | { kind: 'start'; name: string }
   | { kind: 'city'; name: string; group: Group; price: number; houseCost: number; rent: number[] }
   | { kind: 'holy'; name: string; price: number; rent: number[] }
@@ -89,7 +91,7 @@ export const BOARD: readonly Tile[] = [
   city('Lucknow', 'orange', 600, T5), // 18
   city('Kochi', 'orange', 650, T6), // 19
   { kind: 'freeParking', name: 'Free Parking' }, // 20
-  city('Nagpur', 'red', 750, T7), // 21
+  { kind: 'toll', name: 'Sarkari Toll', price: CONFIG.toll.price, base: CONFIG.toll.base, rise: CONFIG.toll.rise }, // 21
   kismat(), // 22
   city('Chandigarh', 'red', 750, T7), // 23
   city('Surat', 'red', 800, T8), // 24
@@ -106,7 +108,7 @@ export const BOARD: readonly Tile[] = [
   rail('New Delhi Station'), // 35
   kismat(), // 36
   city('Delhi', 'blue', 1150, T13), // 37
-  { kind: 'tax', name: 'GST', amount: CONFIG.gst }, // 38
+  { kind: 'market', name: 'Stock Market' }, // 38
   city('Mumbai', 'blue', 1350, T14), // 39
 ];
 
@@ -140,6 +142,6 @@ BOARD.forEach((t, i) => {
 });
 
 export const isOwnable = (t: Tile): t is Extract<Tile, { price: number }> =>
-  t.kind === 'city' || t.kind === 'holy' || t.kind === 'rail' || t.kind === 'utility';
+  t.kind === 'city' || t.kind === 'holy' || t.kind === 'rail' || t.kind === 'utility' || t.kind === 'toll';
 
 export const mortgageValue = (price: number): number => price * CONFIG.mortgageRate;

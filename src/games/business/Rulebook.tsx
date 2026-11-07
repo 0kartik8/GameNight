@@ -93,7 +93,7 @@ export default function Rulebook({ onClose }: { onClose: () => void }) {
           <li>
             Every landing on a holy city costs a {inr(CONFIG.holy.donation)} donation. That includes the owner, and it applies whether the city is owned or not. A visitor pays rent as well.
           </li>
-          <li>The donation goes to the poorest other player by cash. A tie goes to the one whose properties have the lower total mortgage value. If that also ties, it goes into the Free Parking pot.</li>
+          <li>The donation goes to the poorest other player by cash. A tie goes to the one whose properties have the lower total mortgage value. If that also ties, it goes into the pot.</li>
           <li>
             Each city counts its own donations. After {CONFIG.holy.corruptAfter} it is corrupted for good. The third landing is still charged as a holy city.
           </li>
@@ -128,7 +128,7 @@ export default function Rulebook({ onClose }: { onClose: () => void }) {
         </Section>
 
         <Section title="Free Parking">
-          <li>Income Tax, GST, and card fines go into the Free Parking pot. It starts at {inr(0)}.</li>
+          <li>Income Tax and card fines go into the pot. It starts at {inr(0)}.</li>
           <li>Land on Free Parking and take the whole pot.</li>
           <li>Jail fines and repair bills go to the bank, not the pot.</li>
         </Section>
@@ -138,6 +138,37 @@ export default function Rulebook({ onClose }: { onClose: () => void }) {
           <li>Moving forward past Start pays salary. Moving back does not. A move can land you on another card tile or on a property you must pay for.</li>
           <li>A Get out of Jail card is kept until used. You can trade it.</li>
           <li>Speed limit: your next roll over {CONFIG.speedLimitMaxRoll} sends you straight to Jail. It lasts for one roll.</li>
+        </Section>
+
+        <Section title="Sarkari Toll">
+          <li>A tile at the top of the board. It is not in any color set. Its rent starts at {inr(CONFIG.toll.base)}.</li>
+          <li>Its rent rises by {inr(CONFIG.toll.rise)} at the start of every round, for everyone. A new owner keeps the raised rent.</li>
+        </Section>
+
+        <Section title="Stock Market">
+          <li>Not for sale, like Khazana. Landing here picks a random multiplier of ×0.5, ×1, or ×2 for you.</li>
+          <li>For the next {CONFIG.market.rounds} rounds, the rent you RECEIVE is multiplied. Rent you pay is never changed.</li>
+          <li>Uno Reverse flips it: ×0.5 becomes ×2, ×2 becomes ×0.5, ×1 stays.</li>
+        </Section>
+
+        <Section title="Jokers and special cards">
+          <li>Some Kismat cards are Jokers. Nobody sees what a Joker is until its holder looks at it in private.</li>
+          <li>Tap the 🃏 beside your name, hide the screen, look, then hide it again. Jokers stay with you until used.</li>
+          <li>Heist: before you roll, take up to {inr(CONFIG.heistCap)} from one player.</li>
+          <li>Uno Reverse: on your turn, reverses one charge aimed at you. The payee pays you instead, so you keep the money. It can also reverse a Heist taken from you, or flip your Stock Market multiplier.</li>
+          <li>Block (government seal): on your turn, seal one of your properties. For {CONFIG.blockTurns} turns it collects no rent. It cannot be sold, mortgaged, auctioned, or traded while sealed.</li>
+          <li>Get out of Jail: a Joker that leaves Jail for free.</li>
+          <li>Money from a card that goes to nowhere simply leaves the game. Uno Reverse on that charge pays you from the bank.</li>
+        </Section>
+
+        <Section title="Selling">
+          <li>Sell a property back to the bank for {Math.round(CONFIG.sellRate * 100)}% of its price, rounded to ₹5. You must sell its buildings first, and unmortgage it first.</li>
+          <li>Or auction it yourself. Other players bid, you cannot bid on your own property, and the money goes to you.</li>
+        </Section>
+
+        <Section title="Ending early">
+          <li>Any player can start a vote to end the game. More than half the players must vote yes.</li>
+          <li>The game ends after the current turn, and final standings use net worth. A voter can take their vote back before it passes.</li>
         </Section>
 
         <Section title="Trading">

@@ -43,6 +43,17 @@ export const CONFIG = {
 
   roundOptions: [5, 10, 15, 20, 30],
   deckSize: 16,
+
+  // Sarkari Toll: its rent rises by `rise` every round, starting at `base`.
+  toll: { price: 550, base: 30, rise: 20 },
+  // Stock Market: landing gives the rent-received multiplier for the next `rounds` rounds.
+  market: { multipliers: [0.5, 1, 2], rounds: 2 },
+  // Heist: most money one Heist can take.
+  heistCap: 300,
+  // Block seal: how many turns (every player's turn-end) the rent stays at 0.
+  blockTurns: 2,
+  // Selling a property back to the bank pays this share of its price, rounded to 5.
+  sellRate: 0.75,
 } as const;
 
 export type RoundOption = (typeof CONFIG.roundOptions)[number];

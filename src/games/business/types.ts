@@ -5,6 +5,20 @@ export type PlayerId = string;
 
 export type WinCondition = { mode: 'lastStanding' } | { mode: 'rounds'; rounds: RoundOption };
 
+/** Kinds of hidden Joker cards. The real kind is only shown to the holder. */
+export type JokerKind = 'heist' | 'uno' | 'block' | 'jail';
+
+export interface PlayerStats {
+  rentIn: number;
+  rentOut: number;
+  bribeIn: number;
+  donationsOut: number;
+  jailed: number;
+  auctionsWon: number;
+  corrupted: number; // holy cities this player owned that corrupted
+  jokers: Record<JokerKind, number>;
+}
+
 export interface Player {
   id: PlayerId;
   name: string;
@@ -12,70 +26,77 @@ export interface Player {
   cash: number;
   position: number;
   inJail: boolean;
-  jailTurns: number; // failed escape turns so far
-  jailFreeCards: DeckName[]; // remembers which deck to return the card to
-  speedLimit: boolean; // next movement roll total above limit sends to jail
+  jailTurns: number;
+  jailFreeCards: DeckName[]; // plain Get-out-of-Jail cards (Khazana)
+  speedLimit: boolean;
   doublesInRow: number;
   bankrupt: boolean;
+  jokers: string[]; // card ids of held Jokers. The kind is hidden until the holder opens it.
+  market: { mult: number; from: number; until: number } | null; // Stock Market effect on rent received
+  heistOwed: { thief: PlayerId; amount: number } | null; // money a Heist took, which Uno Reverse can return
+  stats: PlayerStats;
 }
 
-// houses: 0-4 houses, 5 = hotel. Only ownable tiles have an entry.
 export interface PropertyState {
   owner: PlayerId | null;
   mortgaged: boolean;
   houses: number;
-  donations: number; // holy cities only: donations received so far. Corrupted once it reaches the limit.
+  donations: number; // holy cities: paid donations so far
+  raises: number; // Sarkari Toll: how many rounds its rent has risen
+  blockedUntil: number; // Block seal: rent is 0 while game turns < this
 }
 
-// drawPile[0] = top. Drawn card goes to bottom. Held jail-free cards leave the pile until used.
 export interface DeckState {
   drawPile: string[];
 }
 
-export type Payee = { kind: 'bank' } | { kind: 'pot' } | { kind: 'player'; id: PlayerId };
+export type Payee = { kind: 'bank' } | { kind: 'pot' } | { kind: 'nowhere' } | { kind: 'player'; id: PlayerId };
 
 export interface Debt {
   debtor: PlayerId;
   payee: Payee;
   amount: number;
   reason: string;
-  kind: EventKind; // log icon/category when paid
-  holyTile?: number; // a holy-city donation: count it on this tile once paid
+  kind: EventKind;
+  holyTile?: number;
+  offered?: boolean; // Uno Reverse was already offered for this charge
 }
 
 export interface AuctionState {
   tile: number;
   highBid: number;
   highBidder: PlayerId | null;
-  inAuction: PlayerId[]; // players who have not passed
-  toAct: PlayerId; // whose turn to bid or pass, clockwise
+  inAuction: PlayerId[];
+  toAct: PlayerId;
+  seller?: PlayerId | null; // set when an owner auctions their own property; the money goes to them
 }
 
 export interface TradeSide {
   cash: number;
-  tiles: number[]; // no buildings allowed on these
+  tiles: number[];
   jailFree: DeckName[];
 }
 export interface TradeOffer {
   from: PlayerId;
   to: PlayerId;
-  give: TradeSide; // from -> to
-  get: TradeSide; // to -> from
+  give: TradeSide;
+  get: TradeSide;
 }
 
 export type Phase =
-  | { t: 'turnStart' } // build, mortgage, trade, then ROLL. In jail: jail options too.
+  | { t: 'turnStart' }
   | { t: 'buyOrAuction'; tile: number }
   | { t: 'auction'; auction: AuctionState }
-  | { t: 'cardShown'; cardId: string } // UI shows card, ACK_CARD applies it
-  | { t: 'debt'; debt: Debt } // raise cash, then PAY_DEBT, or DECLARE_BANKRUPTCY
-  | { t: 'turnEnd'; rollAgain: boolean } // after resolution. rollAgain = rolled doubles
+  | { t: 'cardShown'; cardId: string; roll?: number }
+  | { t: 'debt'; debt: Debt }
+  | { t: 'chance'; debt: Debt } // the player can use Uno Reverse on this charge, or pay it
+  | { t: 'turnEnd'; rollAgain: boolean }
   | { t: 'gameOver'; winner: PlayerId; reason: 'lastStanding' | 'netWorth' };
 
 export type EventKind =
-  | 'roll' | 'move' | 'salary' | 'buy' | 'rent' | 'tax' | 'card' | 'jail' | 'jailExit'
+  | 'roll' | 'move' | 'salary' | 'buy' | 'rent' | 'bribe' | 'tax' | 'card' | 'jail' | 'jailExit'
   | 'auction' | 'build' | 'sell' | 'mortgage' | 'trade' | 'pot' | 'donate' | 'corrupt'
-  | 'bankrupt' | 'round' | 'win';
+  | 'bankrupt' | 'round' | 'win' | 'joker' | 'heist' | 'uno' | 'block' | 'market' | 'toll' | 'vote';
 
 export interface LogEntry {
   seq: number;
@@ -83,28 +104,32 @@ export interface LogEntry {
   player?: PlayerId;
   tile?: number;
   amount?: number;
-  text: string; // English, shown in the event log
+  text: string;
 }
 
 export interface GameState {
   version: 1;
-  rngState: number; // deterministic PRNG state. Same state + action = same result
-  players: Player[]; // seating = turn order
-  current: number; // index into players
-  round: number; // 1-based. Bonus doubles rolls do not advance it
+  rngState: number;
+  players: Player[];
+  current: number;
+  round: number;
+  turns: number; // every END_TURN counts one, used by Block
   win: WinCondition;
   properties: Record<number, PropertyState>;
   houseStock: number;
   hotelStock: number;
   decks: Record<DeckName, DeckState>;
-  pot: number; // Free Parking jackpot
+  pot: number;
   phase: Phase;
   lastRoll: [number, number] | null;
   pendingTrade: TradeOffer | null;
-  debtQueue: Debt[]; // debts waiting to be paid, in order
-  pendingMove: number | null; // dice steps to move once a jail fine is settled
-  pendingBuy: number | null; // unowned tile to offer for sale once any debts are cleared
-  pendingAuctions: number[]; // bankruptcy assets still to auction, one after another
+  debtQueue: Debt[];
+  pendingMove: number | null;
+  pendingBuy: number | null;
+  pendingAuctions: number[];
+  resumePhase: Phase | null; // where to go back to after a debt or auction started mid-turn
+  endVotes: PlayerId[]; // players who voted to end the game early
+  endPending: boolean; // true once a majority has voted; the game ends at the next END_TURN
   log: LogEntry[];
 }
 
@@ -113,13 +138,16 @@ export type Action =
   | { type: 'ROLL' }
   | { type: 'JAIL_PAY' }
   | { type: 'JAIL_USE_CARD' }
+  | { type: 'USE_JOKER'; joker: string; target?: PlayerId; tile?: number; mode?: 'heist' | 'market' }
   | { type: 'BUY' }
-  | { type: 'DECLINE_BUY' } // starts auction
+  | { type: 'DECLINE_BUY' }
   | { type: 'AUCTION_BID'; player: PlayerId; amount: number }
   | { type: 'AUCTION_PASS'; player: PlayerId }
+  | { type: 'AUCTION_OWN'; tile: number }
   | { type: 'ACK_CARD' }
   | { type: 'BUILD'; tile: number }
   | { type: 'SELL_BUILDING'; tile: number }
+  | { type: 'SELL_TO_BANK'; tile: number }
   | { type: 'MORTGAGE'; tile: number }
   | { type: 'UNMORTGAGE'; tile: number }
   | { type: 'TRADE_PROPOSE'; offer: TradeOffer }
@@ -127,4 +155,5 @@ export type Action =
   | { type: 'TRADE_DECLINE' }
   | { type: 'PAY_DEBT' }
   | { type: 'DECLARE_BANKRUPTCY' }
+  | { type: 'VOTE_END'; player: PlayerId }
   | { type: 'END_TURN' };

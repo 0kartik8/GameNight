@@ -19,7 +19,9 @@ function plain(s: GameState, i: number): string {
     case 'goToJail':
       return 'Land here and you go straight to Jail. You do not collect salary.';
     case 'tax':
-      return `Pay ${inr(t.amount)}. It goes into the Free Parking pot.`;
+      return `Pay ${inr(t.amount)}. It goes into the pot.`;
+    case 'market':
+      return 'Not for sale. Landing here gives you a random multiplier (×0.5, ×1, or ×2) on the rent you receive, for the next 2 rounds. Rent you pay is not changed.';
     case 'card':
       return t.deck === 'kismat' ? 'Draw a Kismat card. Luck: money, moves, fines, and Jail.' : 'Draw a Khazana card. Everyday money: gifts, bills, and fees.';
     default:

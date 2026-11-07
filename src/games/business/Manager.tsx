@@ -1,7 +1,7 @@
 import { X } from 'lucide-react';
 import { BOARD, mortgageValue } from './board';
 import { CONFIG } from './config';
-import { buildCheck, currentPlayer, mortgageCheck, ownedTiles, playerById, sellCheck, unmortgageCheck, unmortgageCost } from './engine';
+import { auctionOwnCheck, blockedNow, bankPrice, buildCheck, currentPlayer, mortgageCheck, ownedTiles, playerById, sellCheck, sellToBankCheck, unmortgageCheck, unmortgageCost } from './engine';
 import type { Action, GameState } from './types';
 import { inr, tileBand } from './view';
 
@@ -49,18 +49,21 @@ export default function Manager({ s, send, onClose }: { s: GameState; send: (a: 
             const t = BOARD[i];
             const pr = s.properties[i];
             if (t.kind === 'start' || !('price' in t)) return null;
+            const sealed = blockedNow(s, i) ? ' · sealed by Block' : '';
             const status = pr.mortgaged ? 'Mortgaged' : pr.houses === 5 ? 'Hotel' : pr.houses > 0 ? `${pr.houses} house${pr.houses > 1 ? 's' : ''}` : t.kind === 'city' ? 'No buildings' : '';
             return (
               <li key={i} className="flex flex-wrap items-center gap-2 rounded-2xl bg-white/5 p-3">
                 <span className="size-4 shrink-0 rounded" style={{ background: tileBand(s, i) ?? '#fff' }} />
                 <span className="min-w-0 flex-1">
                   <span className="font-display font-extrabold">{t.name}</span>
-                  {status && <span className="ml-2 text-sm text-white/60">{status}</span>}
+                  {(status || sealed) && <span className="ml-2 text-sm text-white/60">{status}{sealed}</span>}
                 </span>
                 {t.kind === 'city' && !inDebt && <Mini label={`Build ${inr(t.houseCost)}`} reason={buildCheck(s, i)} onClick={() => send({ type: 'BUILD', tile: i })} />}
                 {t.kind === 'city' && pr.houses > 0 && <Mini label={`Sell +${inr(Math.floor(t.houseCost * CONFIG.buildingSellRate))}`} reason={sellCheck(s, i)} onClick={() => send({ type: 'SELL_BUILDING', tile: i })} />}
                 {!pr.mortgaged && <Mini label={`Mortgage +${inr(mortgageValue(t.price))}`} reason={mortgageCheck(s, i)} onClick={() => send({ type: 'MORTGAGE', tile: i })} />}
                 {pr.mortgaged && !inDebt && <Mini label={`Unmortgage ${inr(unmortgageCost(t.price))}`} reason={unmortgageCheck(s, i)} onClick={() => send({ type: 'UNMORTGAGE', tile: i })} />}
+                {!pr.mortgaged && <Mini label={`Sell to bank +${inr(bankPrice(t.price))}`} reason={sellToBankCheck(s, i)} onClick={() => send({ type: 'SELL_TO_BANK', tile: i })} />}
+                {!inDebt && <Mini label="Auction it" reason={auctionOwnCheck(s, i)} onClick={() => send({ type: 'AUCTION_OWN', tile: i })} />}
               </li>
             );
           })}

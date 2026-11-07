@@ -9,6 +9,20 @@ export function soundFor(e: LogEntry): SoundName | null {
   switch (e.kind) {
     case 'salary':
       return 'salary';
+    case 'bribe':
+      return 'coins';
+    case 'heist':
+      return 'card';
+    case 'uno':
+      return 'unlock';
+    case 'block':
+      return 'mortgage';
+    case 'market':
+      return 'offer';
+    case 'joker':
+      return 'card';
+    case 'vote':
+      return 'offer';
     case 'buy':
       return 'buy';
     case 'rent':

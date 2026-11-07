@@ -34,6 +34,8 @@ export const inr = (n: number): string => `₹${n.toLocaleString('en-IN')}`;
 export const colorOf = (p: Pick<Player, 'id'>): string => PLAYER_COLORS[(Number(p.id.slice(1)) - 1) % PLAYER_COLORS.length];
 
 export function bandColor(t: Tile): string | null {
+  if (t.kind === 'toll') return '#14b8a6';
+  if (t.kind === 'market') return '#a855f7';
   if (t.kind === 'city') return GROUP_COLOR[t.group];
   if (t.kind === 'holy') return HOLY_COLOR;
   if (t.kind === 'rail' || t.kind === 'utility') return NEUTRAL_COLOR;
@@ -65,6 +67,8 @@ export const TILE_ICON: Partial<Record<Tile['kind'], string>> = {
   tax: '🧾',
   rail: '🚆',
   holy: '🛕',
+  toll: '🏛️',
+  market: '📈',
 };
 
 export function describeEffect(e: CardEffect): string {
@@ -72,11 +76,15 @@ export function describeEffect(e: CardEffect): string {
     case 'collect':
       return `Collect ${inr(e.amount)} from the bank`;
     case 'payPot':
-      return `Pay ${inr(e.amount)} into the Free Parking pot`;
+      return `Pay ${inr(e.amount)} into the pot`;
+    case 'payNowhere':
+      return `Pay ${inr(e.amount)}. The money leaves the game`;
     case 'moveTo':
       return e.tile === 0 ? `Go to Start and collect ${inr(CONFIG.salary)}` : `Advance to ${BOARD[e.tile].name}. Pay rent if it is owned`;
-    case 'moveBy':
-      return e.steps < 0 ? `Go back ${-e.steps} tiles` : `Move forward ${e.steps} tiles`;
+    case 'rollMove':
+      return e.dir > 0 ? 'Move forward the number rolled on the card' : 'Move back the number rolled on the card';
+    case 'joker':
+      return 'A hidden Joker. Only you can open it';
     case 'goToJail':
       return 'Go straight to Jail';
     case 'jailFree':
@@ -121,6 +129,15 @@ export function deedRows(t: Tile, s?: GameState, tile?: number): [string, string
         ['Rent with both holy', inr(t.rent[1])],
         ['Donation on every landing', inr(CONFIG.holy.donation)],
         [`Donations so far`, now && tile !== undefined ? `${now.properties[tile].donations} of ${CONFIG.holy.corruptAfter}` : `corrupts after ${CONFIG.holy.corruptAfter}`],
+      ];
+    }
+    case 'toll': {
+      const raises = s && tile !== undefined ? s.properties[tile].raises : 0;
+      return [
+        ['Rent now', inr(t.base + t.rise * raises)],
+        ['Rent rises each round', inr(t.rise)],
+        ['Starts at', inr(t.base)],
+        ['Owner keeps the raised rent on sale', 'yes'],
       ];
     }
     case 'rail':

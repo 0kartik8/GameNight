@@ -5,7 +5,7 @@ import { BOARD } from './board';
 import { cardById } from './cards';
 import { CONFIG } from './config';
 import Deed from './Deed';
-import { currentPlayer, netWorth, playerById, reduce } from './engine';
+import { currentPlayer, jokerKind, netWorth, playerById, reduce } from './engine';
 import { playSound } from './sound';
 import type { Action, GameState, Player } from './types';
 import { colorOf, describeEffect, inr } from './view';
@@ -88,6 +88,43 @@ interface Props {
   moving?: boolean;
   onRematch: () => void;
   onNewGame: () => void;
+}
+
+export function StatsTable({ s }: { s: GameState }) {
+  const cols: [string, (p: Player) => string][] = [
+    ['Rent in', (p) => inr(p.stats.rentIn)],
+    ['Rent out', (p) => inr(p.stats.rentOut)],
+    ['Bribes', (p) => inr(p.stats.bribeIn)],
+    ['Donations', (p) => inr(p.stats.donationsOut)],
+    ['Jailed', (p) => String(p.stats.jailed)],
+    ['Auctions won', (p) => String(p.stats.auctionsWon)],
+    ['Corrupted', (p) => String(p.stats.corrupted)],
+    ['Jokers used', (p) => String(p.stats.jokers.heist + p.stats.jokers.uno + p.stats.jokers.block + p.stats.jokers.jail)],
+  ];
+  return (
+    <div className="mt-2 w-full max-w-xl overflow-x-auto rounded-2xl bg-white/5 p-3 text-left text-xs">
+      <table className="w-full">
+        <thead>
+          <tr className="text-white/50">
+            <th className="pr-3 text-left font-normal">Player</th>
+            {cols.map(([h]) => (
+              <th key={h} className="px-2 font-normal">{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {s.players.map((p) => (
+            <tr key={p.id} className="border-t border-white/10">
+              <td className="py-1 pr-3 font-bold">{p.token} {p.name}</td>
+              {cols.map(([h, f]) => (
+                <td key={h} className="px-2 py-1 text-center tabular-nums">{f(p)}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 export default function Stage({ s, send, openManager, openTrade, moving = false, onRematch, onNewGame }: Props) {
@@ -263,9 +300,35 @@ export default function Stage({ s, send, openManager, openTrade, moving = false,
           <div className={`pop w-80 rounded-3xl p-6 shadow-xl ${kismat ? 'bg-violet text-white' : 'bg-amber text-ink'}`}>
             <div className="font-display font-bold">{kismat ? 'Kismat' : 'Khazana'}</div>
             <p className="my-4 font-display text-3xl font-extrabold leading-tight">{card.line}</p>
-            <p className="rounded-xl bg-black/20 px-3 py-2 font-bold">{describeEffect(card.effect)}</p>
+            <p className="rounded-xl bg-black/20 px-3 py-2 font-bold">{describeEffect(card.effect)}{ph.roll ? ` Rolled: ${ph.roll}.` : ''}</p>
           </div>
           <Button onClick={() => send({ type: 'ACK_CARD' })}>Got it</Button>
+        </>
+      );
+      break;
+    }
+
+    case 'chance': {
+      // A charge aimed at the current player, and they hold an Uno Reverse: use it, or pay.
+      const d = ph.debt;
+      const uno = p.jokers.find((id) => jokerKind(id) === 'uno');
+      body = (
+        <>
+          <Who p={p} sub={`owes ${inr(d.amount)} for ${d.reason}`} big />
+          <p className="max-w-sm text-white/80">You hold an Uno Reverse. Use it to make the payee pay you instead, or pay as usual.</p>
+          <div className="flex flex-wrap justify-center gap-3">
+            {uno && (
+              <Button onClick={() => send({ type: 'USE_JOKER', joker: uno })}>
+                Use Uno Reverse
+              </Button>
+            )}
+            <Button variant="ghost" disabled={p.cash < d.amount} onClick={() => send({ type: 'PAY_DEBT' })}>
+              Pay {inr(d.amount)}
+            </Button>
+            <Button variant="ghost" className="text-pink" onClick={() => send({ type: 'DECLARE_BANKRUPTCY' })}>
+              Declare bankruptcy
+            </Button>
+          </div>
         </>
       );
       break;
@@ -274,7 +337,7 @@ export default function Stage({ s, send, openManager, openTrade, moving = false,
     case 'debt': {
       const d = ph.debt;
       const debtor = playerById(s, d.debtor);
-      const to = d.payee.kind === 'bank' ? 'the bank' : d.payee.kind === 'pot' ? 'the Free Parking pot' : playerById(s, d.payee.id).name;
+      const to = d.payee.kind === 'bank' ? 'the bank' : d.payee.kind === 'pot' ? 'the pot' : d.payee.kind === 'nowhere' ? 'nobody' : playerById(s, d.payee.id).name;
       body = (
         <>
           <Who p={debtor} sub={`owes ${inr(d.amount)} to ${to}`} big />
@@ -332,7 +395,7 @@ export default function Stage({ s, send, openManager, openTrade, moving = false,
       <div className="absolute left-1/2 top-1/2 flex flex-col p-4" style={{ width: REF, height: REF, transform: `translate(-50%, -50%) scale(${k})` }}>
         <div className="flex shrink-0 justify-between text-sm text-white/60">
           <span>{roundLabel}</span>
-          <span>Free Parking pot {inr(s.pot)}</span>
+          <span>Pot {inr(s.pot)}</span>
         </div>
         <div key={`${ph.t}-${seq}`} aria-busy={moving} className={`pop flex min-h-0 flex-1 flex-col items-center justify-center gap-3 text-center transition-opacity ${moving ? 'pointer-events-none opacity-55' : ''}`}>
           {body}
